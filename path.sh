@@ -1,6 +1,6 @@
-export KALDI_ROOT=/home/guanyu/kaldi
+export KALDI_ROOT=/opt/kaldi/
 [ -f $KALDI_ROOT/tools/env.sh ] && . $KALDI_ROOT/tools/env.sh
-export SRILM=/groups/public/wfst_decoder/tools/srilm
+export SRILM=/opt/kaldi/tools/srilm
 export PATH=${PATH}:${SRILM}/bin:${SRILM}/bin/i686-m64
 export PATH=$PWD/utils/:$KALDI_ROOT/tools/openfst/bin:$PWD:$PATH
 export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${KALDI_ROOT}/src/lib

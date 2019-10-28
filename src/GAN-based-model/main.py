@@ -1,6 +1,7 @@
-import tensorflow as tf 
-import numpy as np 
-import os, json, argparse 
+import tensorflow as tf
+tf.logging.set_verbosity(tf.logging.INFO)
+import numpy as np
+import os, json, argparse
 
 from evalution import output_framewise_prob
 # from  lib.data_load import *

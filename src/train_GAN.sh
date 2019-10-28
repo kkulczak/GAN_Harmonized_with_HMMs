@@ -6,7 +6,7 @@ prefix=${bnd_type}_iter${iteration}_${setting}_gan
 # Train GAN and output phoneme posterior
 cd GAN-based-model
 
-python3 main.py --mode train --cuda_id 0 \
+python3 main.py --mode train --cuda_id $CUDA_VISIBLE_DEVICES \
                --bnd_type $bnd_type --iteration $iteration \
                --setting $setting \
                --data_dir $DATA_PATH \
