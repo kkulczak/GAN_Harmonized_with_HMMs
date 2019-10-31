@@ -18,8 +18,8 @@ minimize=false
 
 echo "$0 $@"  # Print the command line for logging
 
-#[ -f ./path.sh ] && . ./path.sh; # source the path.
-. parse_options.sh || exit 1;
+[ -f ./path.sh ] && . ./path.sh; # source the path.
+. utils/parse_options.sh || exit 1;
 
 if [ $# -ne 3 ]; then
   echo "Usage: $0 [options] <graph-dir> <data-dir> <decode-dir>"
@@ -78,5 +78,4 @@ fi
 echo "Decoding done."
 
 cd $current_dir
-
 exit 0;

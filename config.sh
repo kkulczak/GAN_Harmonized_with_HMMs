@@ -12,4 +12,4 @@ export bnd_type=uns
 export setting=match
 
 #Number of jobs
-export jobs=8
+export jobs=12
