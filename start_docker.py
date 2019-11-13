@@ -36,7 +36,7 @@ def generate_parser():
     )
     arg_parser.add_argument(
         '-p', '--project-dir',
-        default=os.path.join(os.getcwd(), '..'),
+        default=os.getcwd(),
         help='Path to project directory. Mounted in docker under /home/shared'
     )
     arg_parser.add_argument(
