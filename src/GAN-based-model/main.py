@@ -61,6 +61,7 @@ def print_training_parameter(args, config):
 def main(args, config):
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
     os.environ['CUDA_VISIBLE_DEVICES'] = args.cuda_id
+    tf.random.set_random_seed(int(os.environ['TF_RANDOM_SEED']))
 
     train_bnd_path    = f'{args.data_dir}/timit_for_GAN/audio/timit-train-{args.bnd_type}{args.iteration}-bnd.pkl'
     output_path       = f'{args.save_dir}/train.pkl'
