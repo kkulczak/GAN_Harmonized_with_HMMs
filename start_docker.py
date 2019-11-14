@@ -26,7 +26,7 @@ def generate_parser():
     )
     arg_parser.add_argument(
         '-n', '--name',
-        default=DEFAULT_NAME,
+        default=os.path.basename(os.getcwd()),
         help='container name, preceded with "username"'
     )
     arg_parser.add_argument(
