@@ -22,7 +22,12 @@ class model(object):
                 self.frame_temp  = tf.placeholder(tf.float32, shape=[])
                 
             with tf.variable_scope('generator') as scope:
-                self.frame_prob, _, frame_log_prob = frame2phn(self.frame_feat, args, args.sample_temp, input_len=self.frame_len)
+                self.frame_prob, _, frame_log_prob = frame2phn(
+                    self.frame_feat,
+                    args,
+                    args.sample_temp,
+                    input_len=self.frame_len
+                )
                 self.frame_pred = tf.argmax(self.frame_prob, axis=-1)
 
             if train:

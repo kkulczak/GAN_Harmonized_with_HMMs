@@ -1,12 +1,24 @@
-import os 
-import sys 
-import _pickle as pk 
-import numpy as np 
-import random 
+import os
+import sys
+import _pickle as pk
+import numpy as np
+import random
 import math
 
+
 class data_loader(object):
-    def __init__(self, args, phn_max_length, feat_path, phn_path, orc_bnd_path, train_bnd_path=None, target_path=None, sep_number=None, name='DATA LOADER'):
+    def __init__(
+        self,
+        args,
+        phn_max_length,
+        feat_path,
+        phn_path,
+        orc_bnd_path,
+        train_bnd_path=None,
+        target_path=None,
+        sep_number=None,
+        name='DATA LOADER'
+    ):
         cout_word = f'{name}: loading    '
         sys.stdout.write(cout_word)
         sys.stdout.flush()
@@ -22,13 +34,13 @@ class data_loader(object):
         self.target_path     = target_path
 
         self.read_phn_map('./phones.60-48-39.map.txt')
-        
+
         feat    = self.load_pickle(feat_path)
         phn     = self.load_pickle(phn_path)
         orc_bnd = self.load_pickle(orc_bnd_path)
         assert (len(feat) == len(phn) == len(orc_bnd))
         self.data_length = len(feat) if self.sep_number is None else self.sep_number
-        
+
         self.process_feat(feat[:self.data_length])
         self.process_label(orc_bnd[:self.data_length], phn[:self.data_length])
 
@@ -46,7 +58,7 @@ class data_loader(object):
 
     def load_pickle(self, file_name):
         return pk.load(open(file_name, 'rb'))
-    
+
     def read_phn_map(self, path):
         all_lines = open(path, 'r').read().splitlines()
         phn_mapping = {}
@@ -59,7 +71,7 @@ class data_loader(object):
         assert(len(all_phn) == 48)
         self.phn2idx = dict(zip(all_phn, range(len(all_phn))))
         self.idx2phn = dict(zip(range(len(all_phn)), all_phn))
-        self.phn_size = len(all_phn) 
+        self.phn_size = len(all_phn)
         self.phn_mapping = {}
         self.sil_idx = self.phn2idx['sil']
         for phn in all_phn:
@@ -82,11 +94,18 @@ class data_loader(object):
         for idx, bnd in enumerate(train_bound):
             self.train_bnd[idx]        = self.pad_value(np.array(bnd[:-1]), 0, self.phn_max_length)
             self.train_bnd_range[idx]  = self.pad_value(np.array(bnd[1:]) - np.array(bnd[:-1]), 0, self.phn_max_length)
-            self.train_seq_length[idx] = len(bnd) - 1 
+            self.train_seq_length[idx] = len(bnd) - 1
 
     def process_feat(self, feature):
         self.feat_dim = feature[0].shape[-1]
-        self.source_data        = np.zeros(shape=[self.data_length, self.feat_max_length, self.feat_dim*self.concat_window], dtype='float32')
+        self.source_data        = np.zeros(
+            shape=[
+                self.data_length,
+                self.feat_max_length,
+                self.feat_dim*self.concat_window
+            ],
+            dtype='float32')
+
         self.source_data_length = np.zeros(shape=[self.data_length], dtype='int32')
 
         for idx, feat in enumerate(feature):
@@ -119,12 +138,12 @@ class data_loader(object):
 
     def process_target(self, target_path):
         target_data = [line.strip().split() for line in open(target_path, 'r')]
-        self.target_data_length = len(target_data) 
+        self.target_data_length = len(target_data)
         self.target_data    = np.zeros(shape=[self.target_data_length, self.phn_max_length], dtype='int32')
         self.target_length  = np.zeros(shape=[self.target_data_length], dtype='int32')
 
         for idx, target in enumerate(target_data):
-            self.target_data[idx][:len(target)] = np.array([self.phn2idx[t] for t in target]) 
+            self.target_data[idx][:len(target)] = np.array([self.phn2idx[t] for t in target])
             self.target_length[idx] = len(target)
 
     def print_parameter(self, target=False):
@@ -172,14 +191,14 @@ class data_loader(object):
         return batch_target_data, batch_target_length
 
     def data_augmentation(self, seq, length):
-        new_seq = [] 
+        new_seq = []
         for s in seq[:length]:
             if s == self.sil_idx:
                 # new_seq.extend([s]*np.random.choice([0, 1, 2], p=[0.04, 0.8, 0.16]))
                 new_seq.extend([s])
             else:
                 new_seq.extend([s]*np.random.choice([0, 1, 2, 3], p=[0.04, 0.78, 0.17, 0.01]))
-        return np.array(new_seq), len(new_seq) 
+        return np.array(new_seq), len(new_seq)
 
     def generate_batch_number(self, batch_size):
         self.batch_number = (self.data_length-1) // batch_size + 1

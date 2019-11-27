@@ -13,3 +13,6 @@ export setting=match
 
 #Number of jobs
 export jobs=12
+
+#Use tensorflow debugger: on / off
+export TFGDB=off

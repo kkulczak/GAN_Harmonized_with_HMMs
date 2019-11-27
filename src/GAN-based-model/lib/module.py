@@ -22,7 +22,10 @@ def compute_penalty(inter_sample_pred, inter_sample):
 
 def masking(inputs, length, phn_size):
     mask = tf.sequence_mask(length, tf.shape(inputs)[1])
-    mask = tf.tile(tf.expand_dims(mask, -1),[1, 1, phn_size])
+    mask = tf.tile(
+        tf.expand_dims(mask, -1),
+        [1, 1, phn_size]
+    )
     paddings = tf.zeros_like(inputs)
     return tf.where(mask, inputs, paddings)
 
@@ -51,6 +54,7 @@ def frame2phn(input_frame, config, temp, input_len=None, reuse=False):
         # Masking
         soft_prob = masking(soft_prob, input_len, config.phn_size)
         hard_prob = masking(hard_prob, input_len, config.phn_size)
+        hard_prob = None  ## xDxDxD
     return soft_prob, hard_prob, log_prob
 
 def generate_real_sample(input_idx, input_len, phn_size):

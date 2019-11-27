@@ -32,10 +32,22 @@ class model(object):
 
             with tf.variable_scope('generator') as scope:
                 # Get generated phoneme sequence
-                self.fake_sample, _, _ = frame2phn(self.sample_feat, config, self.frame_temp, input_len=self.sample_len, reuse=False)
+                self.fake_sample, _, _ = frame2phn(
+                    self.sample_feat,
+                    config,
+                    self.frame_temp,
+                    input_len=self.sample_len,
+                    reuse=False
+                )
 
                 # Get framewise phoneme distribution
-                self.frame_prob, _, _   = frame2phn(self.frame_feat,  config, self.frame_temp, input_len=self.frame_len, reuse=True)
+                self.frame_prob, _, _   = frame2phn(
+                    self.frame_feat,
+                    config,
+                    self.frame_temp,
+                    input_len=self.frame_len,
+                    reuse=True
+                )
                 
                 # Get framewise prediction
                 self.frame_pred  = tf.argmax(self.frame_prob,  axis=-1)
@@ -46,10 +58,32 @@ class model(object):
                 inter_sample = generate_inter_sample(self.real_sample, self.fake_sample)
 
                 # weak discriminator
-                emb = creating_embedding_matrix(config.phn_size, config.dis_emb_size, 'emb')
-                real_sample_pred  = weak_discriminator(self.real_sample,  emb, config.dis_hidden_1_size, config.dis_hidden_2_size, reuse=False)
-                fake_sample_pred  = weak_discriminator(self.fake_sample,  emb, config.dis_hidden_1_size, config.dis_hidden_2_size, reuse=True)
-                inter_sample_pred = weak_discriminator(inter_sample,      emb, config.dis_hidden_1_size, config.dis_hidden_2_size, reuse=True)
+                emb = creating_embedding_matrix(
+                    config.phn_size,
+                    config.dis_emb_size,
+                    'emb'
+                )
+                real_sample_pred  = weak_discriminator(
+                    self.real_sample,
+                    emb,
+                    config.dis_hidden_1_size,
+                    config.dis_hidden_2_size,
+                    reuse=False
+                )
+                fake_sample_pred  = weak_discriminator(
+                    self.fake_sample,
+                    emb,
+                    config.dis_hidden_1_size,
+                    config.dis_hidden_2_size,
+                    reuse=True
+                )
+                inter_sample_pred = weak_discriminator(
+                    inter_sample,
+                    emb,
+                    config.dis_hidden_1_size,
+                    config.dis_hidden_2_size,
+                    reuse=True
+                )
 
                 # gradient penalty
                 gradient_penalty = compute_penalty(inter_sample_pred, inter_sample)
@@ -59,18 +93,26 @@ class model(object):
 
                 with tf.variable_scope('segmental_loss') as scope:
                     sep_size = (config.batch_size * config.repeat)//2
-                    self.seg_loss   = segment_loss(self.fake_sample[:sep_size], self.fake_sample[sep_size:], repeat_num=self.sample_rep)
+                    self.seg_loss   = segment_loss(
+                        self.fake_sample[:sep_size],
+                        self.fake_sample[sep_size:],
+                        repeat_num=self.sample_rep
+                    )
                 
                 with tf.variable_scope('discriminator_loss') as scope:
                     self.real_score = tf.reduce_mean(real_sample_pred)
                     self.fake_score = tf.reduce_mean(fake_sample_pred)
-                    self.dis_loss = - (self.real_score - self.fake_score) + config.penalty_ratio * gradient_penalty
+                    self.dis_loss = - (self.real_score - self.fake_score) \
+                                    + config.penalty_ratio * gradient_penalty
 
                 with tf.variable_scope('generator_loss') as scope:
-                    self.gen_loss = - (self.fake_score - self.real_score) + config.seg_loss_ratio * self.seg_loss
+                    self.gen_loss = - (self.fake_score - self.real_score) \
+                                    + config.seg_loss_ratio * self.seg_loss
                     
-                self.dis_variables = [v for v in tf.trainable_variables() if v.name.startswith("discriminator")]
-                self.gen_variables = [v for v in tf.trainable_variables() if v.name.startswith("generator")]
+                self.dis_variables = [v for v in tf.trainable_variables()
+                                      if v.name.startswith("discriminator")]
+                self.gen_variables = [v for v in tf.trainable_variables()
+                                      if v.name.startswith("generator")]
 
                 # Discriminator optimizer
                 train_dis_op = tf.train.AdamOptimizer(self.learning_rate, beta1=0.5, beta2=0.9) 
@@ -102,7 +144,12 @@ class model(object):
             if step == 8000:  frame_temp = 0.8
             if step == 12000: frame_temp = 0.7
             for _ in range(config.dis_iter):
-                batch_sample_feat, batch_sample_len, batch_repeat_num = data_loader.get_sample_batch(config.batch_size, repeat=config.repeat)
+                batch_sample_feat, batch_sample_len, batch_repeat_num = \
+                    data_loader.get_sample_batch(
+                        config.batch_size,
+                        repeat=config.repeat
+                    )
+
                 batch_target_idx, batch_target_len = get_target_batch(batch_size)
 
                 feed_dict = {

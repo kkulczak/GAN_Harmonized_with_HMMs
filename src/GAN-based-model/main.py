@@ -137,6 +137,9 @@ def main(args, config):
 
         if args.mode == 'train':
             print_training_parameter(args, config)
+            from tensorflow.python import debug as tf_debug
+            if os.environ['TFGDB'] == 'on':
+                sess = tf_debug.TensorBoardDebugWrapperSession(sess, "127.0.0.1:6064")
             g.train(config, sess, saver, train_data_loader, dev_data_loader, args.aug)
             print_training_parameter(args, config)
             output_framewise_prob(sess, g, f'{args.save_dir}/train.pkl', train_data_loader)
