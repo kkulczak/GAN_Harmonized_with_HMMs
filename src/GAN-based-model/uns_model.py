@@ -106,9 +106,10 @@ class model(object):
                                     + config.penalty_ratio * gradient_penalty
 
                 with tf.variable_scope('generator_loss') as scope:
-                    self.gen_loss = - (self.fake_score - self.real_score) \
-                                    + config.seg_loss_ratio * self.seg_loss
-                    
+                    # self.gen_loss = - (self.fake_score - self.real_score) \
+                    #                 + config.seg_loss_ratio * self.seg_loss
+                    self.gen_loss = - (self.fake_score - self.real_score)
+
                 self.dis_variables = [v for v in tf.trainable_variables()
                                       if v.name.startswith("discriminator")]
                 self.gen_variables = [v for v in tf.trainable_variables()
