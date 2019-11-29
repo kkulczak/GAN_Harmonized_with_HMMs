@@ -31,7 +31,7 @@ def masking(inputs, length, phn_size):
 
 def frame2phn_network(input_frame, config):
     # Reshape to [-1, feature_len]
-    frame_shape = input_frame.get_shape().as_list() 
+    frame_shape = input_frame.get_shape().as_list()
     input_frame = tf.reshape(input_frame, [-1, int(frame_shape[2])])
 
     with tf.variable_scope('frame2phn_network') as scope:
@@ -90,9 +90,11 @@ def intra_segment_loss(frame_prob, bound_weight):
 
 def segment_loss(start_prob, end_prob, repeat_num=None):
     loss = tf.square(start_prob - end_prob)
+    # repeat_num - how many times start_prob and end_prob had picked same y_j
+    # as representant of S_i
     if repeat_num is None:
         return tf.reduce_mean(loss)
-    else: 
+    else:
         return  tf.reduce_sum(loss) / tf.cast(tf.reduce_sum(repeat_num), tf.float32)
 
 def sequence_loss(decoder_outputs, target_inputs, target_length):
