@@ -72,7 +72,8 @@ def sample_noise(shape, eps=1e-20):
     return -tf.log(-tf.log(U + eps) + eps)
 
 def softmax(logits, temperature, sample=True):
-    y = logits + sample_noise(tf.shape(logits)) if sample else logits
+    # y = logits + sample_noise(tf.shape(logits)) if sample else logits
+    y = logits
     return tf.nn.softmax( y / temperature )
 
 def gumbel_sampling(logits, temperature=0.9, hard=False):
