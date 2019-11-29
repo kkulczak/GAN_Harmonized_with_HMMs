@@ -102,8 +102,9 @@ class model(object):
                 with tf.variable_scope('discriminator_loss') as scope:
                     self.real_score = tf.reduce_mean(real_sample_pred)
                     self.fake_score = tf.reduce_mean(fake_sample_pred)
-                    self.dis_loss = - (self.real_score - self.fake_score) \
-                                    + config.penalty_ratio * gradient_penalty
+                    # self.dis_loss = - (self.real_score - self.fake_score) \
+                    #                 + config.penalty_ratio * gradient_penalty
+                    self.dis_loss = - (self.real_score - self.fake_score)
 
                 with tf.variable_scope('generator_loss') as scope:
                     self.gen_loss = - (self.fake_score - self.real_score) \
