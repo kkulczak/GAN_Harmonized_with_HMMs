@@ -205,9 +205,9 @@ class model(object):
                     dis_sess_fake_sample,
                 ) = sess.run(run_list, feed_dict=feed_dict)
                 print(
-                    f'diss_loss: {dis_sess_fake_score:.f2} - '
-                    f'{dis_sess_real_score:.f2} + '
-                    f'10 * {gradient_penalty:.f2} =={dis_loss:.f2}'
+                    f'diss_loss: {dis_sess_fake_score:.2f} - '
+                    f'{dis_sess_real_score:.2f} + '
+                    f'10 * {gradient_penalty:.2f} =={dis_loss:.2f}'
                 )
 
             for _ in range(config.gen_iter):
