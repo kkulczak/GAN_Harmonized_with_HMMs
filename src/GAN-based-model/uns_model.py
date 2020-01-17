@@ -186,8 +186,29 @@ class model(object):
                     self.frame_temp:    frame_temp
                 }
 
-                run_list = [self.dis_loss, self.train_dis_op]
-                dis_loss, _ = sess.run(run_list, feed_dict=feed_dict)
+                run_list = [
+                    self.dis_loss,
+                    self.train_dis_op,
+                    self.real_score,
+                    self.fake_score,
+                    self.gradient_penalty,
+                    self.real_sample,
+                    self.fake_sample,
+                ]
+                (
+                    dis_loss,
+                    train_dis_op,
+                    dis_sess_real_score,
+                    dis_sess_fake_score,
+                    dis_sess_gradient_penalty,
+                    dis_sess_real_sample,
+                    dis_sess_fake_sample,
+                ) = sess.run(run_list, feed_dict=feed_dict)
+                print(
+                    f'diss_loss: {dis_sess_fake_score:.f2} - '
+                    f'{dis_sess_real_score:.f2} + '
+                    f'10 * {gradient_penalty:.f2} =={dis_loss:.f2}'
+                )
 
             for _ in range(config.gen_iter):
                 batch_sample_feat, batch_sample_len, batch_repeat_num = \
@@ -208,11 +229,22 @@ class model(object):
                     self.frame_temp:    frame_temp
                 }
 
-                run_list = [self.gen_loss, self.seg_loss, self.train_gen_op,
-                            self.fake_sample, self.real_score,
-                            self.fake_score, self.gradient_penalty]
-                gen_loss, seg_loss, _, smaple, real_score, fake_score, gradient_penalty = sess.run(run_list,
-                                                         feed_dict=feed_dict)
+                run_list = [
+                    self.gen_loss,
+                    self.seg_loss,
+                    self.train_gen_op,
+                    self.fake_sample,
+                    self.real_score,
+                    self.fake_score,
+                ]
+                (
+                    gen_loss,
+                    seg_loss,
+                    _,
+                    fake_sample,
+                    real_score,
+                    fake_score,
+                ) = gradient_penalty = sess.run(run_list, feed_dict=feed_dict)
 
             step_gen_loss += gen_loss / config.print_step
             step_dis_loss += dis_loss / config.print_step
@@ -220,7 +252,6 @@ class model(object):
             step_real_score += real_score / config.print_step
             step_fake_score += fake_score / config.print_step
             step_gradient_penalty += gradient_penalty / config.print_step
-
 
             if step % config.print_step == 0:
                 print(
