@@ -1,3 +1,8 @@
+from collections import defaultdict
+from glob import glob
+
+from torch.utils.tensorboard import SummaryWriter
+
 from lib.discriminator import *
 from lib.module import *
 from evalution import *
@@ -5,6 +10,14 @@ from evalution import *
 import tensorflow as tf
 import numpy as np
 import os, sys
+
+
+def assign_label(x):
+    if 'score' in x:
+        return f'scores/{x}'
+    if 'loss' in x:
+        return f'loss/{x}'
+    return x
 
 
 class model(object):
@@ -156,12 +169,17 @@ class model(object):
             get_target_batch = data_loader.get_target_batch
 
         batch_size = config.batch_size * config.repeat
-        step_gen_loss, step_dis_loss, step_seg_loss = 0.0, 0.0, 0.0
-        step_real_score = 0.0
-        step_fake_score = 0.0
-        step_gradient_penalty = 0.0
+        stats = defaultdict(list)
         max_fer = 100.0
         frame_temp = 0.9
+
+        mydir = os.path.join(os.getcwd(), '..', '..', 'data')
+
+        for p in glob(os.path.join(mydir, '*tfevents*')):
+            print(f'Removing file: {p}')
+            os.remove(p)
+        writer = SummaryWriter(mydir)
+
         for step in range(1, config.step + 1):
             if step == 8000:
                 frame_temp = 0.8
@@ -198,17 +216,16 @@ class model(object):
                 (
                     dis_loss,
                     train_dis_op,
-                    dis_sess_real_score,
-                    dis_sess_fake_score,
-                    dis_sess_gradient_penalty,
-                    dis_sess_real_sample,
-                    dis_sess_fake_sample,
+                    d_real_score,
+                    d_fake_score,
+                    d_gradient_penalty,
+                    d_real_sample,
+                    d_fake_sample,
                 ) = sess.run(run_list, feed_dict=feed_dict)
-                print(
-                    f'diss_loss: {dis_sess_fake_score:.2f} - '
-                    f'{dis_sess_real_score:.2f} + '
-                    f'10 * {gradient_penalty:.2f} =={dis_loss:.2f}'
-                )
+                stats['dis_loss'].append(dis_loss)
+                stats['d_real_score'].append(d_real_score)
+                stats['d_fake_score'].append(d_fake_score)
+                stats['d_gradient_penalty'].append(d_gradient_penalty)
 
             for _ in range(config.gen_iter):
                 batch_sample_feat, batch_sample_len, batch_repeat_num = \
@@ -240,31 +257,45 @@ class model(object):
                 (
                     gen_loss,
                     seg_loss,
-                    _,
-                    fake_sample,
-                    real_score,
-                    fake_score,
-                ) = gradient_penalty = sess.run(run_list, feed_dict=feed_dict)
+                    train_gen_op,
+                    g_fake_sample,
+                    g_real_score,
+                    g_fake_score,
+                ) = sess.run(run_list, feed_dict=feed_dict)
 
-            step_gen_loss += gen_loss / config.print_step
-            step_dis_loss += dis_loss / config.print_step
-            step_seg_loss += seg_loss / config.print_step
-            step_real_score += real_score / config.print_step
-            step_fake_score += fake_score / config.print_step
-            step_gradient_penalty += gradient_penalty / config.print_step
+                stats['gen_loss'].append(gen_loss)
+                stats['seg_loss'].append(seg_loss)
+                stats['g_real_score'].append(g_real_score)
+                stats['g_fake_score'].append(g_fake_score)
 
             if step % config.print_step == 0:
+                for k in stats.keys():
+                    stats[k] = np.array(stats[k]).mean()
+
                 print(
-                    f'Step: {step:5d} dis_loss: {step_gen_loss:.4f} gen_loss: '
-                    f'{step_dis_loss:.4f} seg_loss: {step_seg_loss:.4f}'
-                    f' real_score: {step_real_score:.4f}'
-                    f' fake_score: {step_fake_score:.4f}'
-                    f' gradient_penalty: {step_gradient_penalty:.4f}'
+                    f'Step: {step:5d} \n'
+                    f'dis_loss: {stats["dis_loss"]:.4f} '
+                    f'== fake:{stats["d_fake_score"]:.4f} '
+                    f'- real:{stats["d_real_score"]:.4f} '
+                    f'+ {config.penalty_ratio:.1f} '
+                    f'* gp:{stats["d_gradient_penalty"]:.4f}'
                 )
-                step_gen_loss, step_dis_loss, step_seg_loss = 0.0, 0.0, 0.0
-                step_real_score = 0.0
-                step_fake_score = 0.0
-                step_gradient_penalty = 0.0
+                print(
+                    f'gen_loss: {stats["gen_loss"]:.4f} '
+                    f'== real:{stats["g_real_score"]:.4f} '
+                    f'- fake:{stats["g_fake_score"]:.4f} '
+                    f'+ {config.seg_loss_ratio:.1f} * seg_loss:'
+                    f'{stats["seg_loss"]:.4f}'
+                )
+                for k, v in stats.items():
+                    writer.add_scalar(
+                        assign_label(k),
+                        v,
+                        global_step=step,
+                    )
+                    writer.flush()
+
+                stats.clear()
 
             if step % config.eval_step == 0:
                 step_fer = frame_eval(sess, self, dev_data_loader)

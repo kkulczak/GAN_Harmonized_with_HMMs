@@ -27,7 +27,8 @@ RUN conda install -y -c conda-forge \
     librosa
 
 RUN pip install soundfile pyyaml tensorflow-gpu==1.13.2 numpy==1.16.0
-
+RUN pip install torch==1.3.1
+RUN pip install tensorboard==1.14
 
 #RUN sed -i 's/timit=\/mnt\/matylda2\/data\/TIMIT\/timit /timit=\/home\/shared\/data\/timit_data\/raw\/TIMIT /' \
 #    /opt/kaldi/egs/timit/s5/run.sh

@@ -1,6 +1,6 @@
 #!/bin/bash
 iteration=$1
-
+set -e
 prefix=${bnd_type}_iter${iteration}_${setting}_gan
 
 # Train GAN and output phoneme posterior

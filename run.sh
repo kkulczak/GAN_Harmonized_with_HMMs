@@ -1,5 +1,5 @@
 # !/bin/bash
-
+set -e
 ### Setting for Kaldi
 . ./cmd.sh
 . ./path.sh
