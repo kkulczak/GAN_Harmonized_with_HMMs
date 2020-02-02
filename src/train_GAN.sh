@@ -14,6 +14,7 @@ python3 main.py --mode train --cuda_id $CUDA_VISIBLE_DEVICES \
                --config "./config.yaml"
 
 cd ../ 
+exit 0
 
 # WFST decode the phoneme sequences
 cd WFST-decoder

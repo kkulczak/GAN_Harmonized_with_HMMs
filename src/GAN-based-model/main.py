@@ -78,25 +78,26 @@ def main(args, config):
     print_bar()
     # build dataloader
     if args.mode=='train' or args.mode=='load':
+        pass
         # load train
-        train_data_loader = lib.data_load.data_loader(config, 
-                                                  os.path.join(args.data_dir, config.train_feat_path), 
-                                                  os.path.join(args.data_dir, config.train_phn_path), 
-                                                  os.path.join(args.data_dir, config.train_orc_bnd_path), 
-                                                  train_bnd_path=train_bnd_path, 
-                                                  target_path=target_path, 
-                                                  data_length=data_length, 
-                                                  phn_map_path=phn_map_path,
-                                                  name='DATA LOADER(train)')
-        train_data_loader.print_parameter(True)
-        # load dev
-        dev_data_loader = lib.data_load.data_loader(config, 
-                                                os.path.join(args.data_dir, config.dev_feat_path), 
-                                                os.path.join(args.data_dir, config.dev_phn_path), 
-                                                os.path.join(args.data_dir, config.dev_orc_bnd_path), 
-                                                phn_map_path=phn_map_path,
-                                                name='DATA LOADER(dev)')
-        dev_data_loader.print_parameter()
+        # train_data_loader = lib.data_load.data_loader(config,
+        #                                           os.path.join(args.data_dir, config.train_feat_path),
+        #                                           os.path.join(args.data_dir, config.train_phn_path),
+        #                                           os.path.join(args.data_dir, config.train_orc_bnd_path),
+        #                                           train_bnd_path=train_bnd_path,
+        #                                           target_path=target_path,
+        #                                           data_length=data_length,
+        #                                           phn_map_path=phn_map_path,
+        #                                           name='DATA LOADER(train)')
+        # train_data_loader.print_parameter(True)
+        # # load dev
+        # dev_data_loader = lib.data_load.data_loader(config,
+        #                                         os.path.join(args.data_dir, config.dev_feat_path),
+        #                                         os.path.join(args.data_dir, config.dev_phn_path),
+        #                                         os.path.join(args.data_dir, config.dev_orc_bnd_path),
+        #                                         phn_map_path=phn_map_path,
+        #                                         name='DATA LOADER(dev)')
+        # dev_data_loader.print_parameter()
     else:
         # load train for evalution
         train_data_loader = lib.data_load.data_loader(config, 
@@ -115,9 +116,9 @@ def main(args, config):
 
         train_data_loader.print_parameter()
         dev_data_loader.print_parameter()
-    config.feat_dim = train_data_loader.feat_dim * config.concat_window
-    config.phn_size = train_data_loader.phn_size
-    config.mfcc_dim = train_data_loader.feat_dim
+    config.feat_dim =  config.phrase_length * config.concat_window
+    config.phn_size = config.ascii_size
+    config.mfcc_dim = -2
     config.save_path = f'{args.save_dir}/model'
 
     # build model
@@ -136,14 +137,21 @@ def main(args, config):
         print_bar()
 
         if args.mode == 'train':
-            print_training_parameter(args, config)
+            # print_training_parameter(args, config)
             from tensorflow.python import debug as tf_debug
             if os.environ['TFGDB'] == 'on':
                 sess = tf_debug.TensorBoardDebugWrapperSession(sess, "127.0.0.1:6064")
-            g.train(config, sess, saver, train_data_loader, dev_data_loader, args.aug)
+            g.train(
+                config,
+                sess,
+                saver,
+                None, #train_data_loader,
+                None, #dev_data_loader,
+                None, #args.aug
+            )
             print_training_parameter(args, config)
-            output_framewise_prob(sess, g, f'{args.save_dir}/train.pkl', train_data_loader)
-            output_framewise_prob(sess, g, f'{args.save_dir}/test.pkl', dev_data_loader)
+            # output_framewise_prob(sess, g, f'{args.save_dir}/train.pkl', train_data_loader)
+            # output_framewise_prob(sess, g, f'{args.save_dir}/test.pkl', dev_data_loader)
 
         elif args.mode == 'load':
             print_training_parameter(args, config)

@@ -11,6 +11,8 @@ import tensorflow as tf
 import numpy as np
 import os, sys
 
+from pytorch_data_loader import create_data_samplers
+
 
 def assign_label(x):
     if 'score' in x:
@@ -30,23 +32,49 @@ class model(object):
             with tf.variable_scope('input') as scope:
                 # Acoustic Data
                 #   Framewise Feature
-                self.frame_feat = tf.placeholder(tf.float32, shape=[None,
-                                                                    config.feat_max_length,
-                                                                    config.feat_dim])
-                self.frame_len = tf.placeholder(tf.int32, shape=[None])
+                self.frame_feat = tf.placeholder(
+                    tf.float32,
+                    shape=[
+                        None,
+                        config.phrase_length,
+                        config.ascii_size * config.concat_window
+                    ],
+                    name='frame_feat'
+                )
+                self.real_sample = tf.placeholder(
+                    tf.float32,
+                    shape=[
+                        None,
+                        config.phrase_length,
+                        config.ascii_size
+                    ],
+                    name='real_sample'
+                )
+                self.frame_len = tf.placeholder(tf.int32, shape=[None],
+                                                name='frame_len')
                 #   Sampled Feature
-                self.sample_feat = tf.placeholder(tf.float32, shape=[None,
-                                                                     config.phn_max_length,
-                                                                     config.feat_dim])
-                self.sample_len = tf.placeholder(tf.int32, shape=[None])
+                self.sample_feat = tf.placeholder(
+                    tf.float32,
+                    shape=[
+                        None,
+                        config.phrase_length,
+                        config.ascii_size * config.concat_window
+                    ],
+                    name='sample_feat'
+                )
+                self.sample_len = tf.placeholder(tf.int32, shape=[None],
+                                                 name='sample_len')
                 self.sample_rep = tf.placeholder(tf.int32, shape=[None])
 
                 # Real Data
                 self.target_idx = tf.placeholder(tf.int32, shape=[None,
-                                                                  config.phn_max_length])
-                self.target_len = tf.placeholder(tf.int32, shape=[None])
+                    config.phn_max_length],
+                                                 name='target_idx')
+                self.target_len = tf.placeholder(tf.int32, shape=[None],
+                                                 name='target_len')
 
-                self.frame_temp = tf.placeholder(tf.float32, shape=[])
+                self.frame_temp = tf.placeholder(tf.float32, shape=[],
+                                                 name='frame_temp')
                 self.global_step = tf.Variable(0, name='global_step',
                                                trainable=False)
 
@@ -74,9 +102,9 @@ class model(object):
 
             with tf.variable_scope('discriminator') as scope:
                 # Get real phoneme sequence
-                self.real_sample = generate_real_sample(self.target_idx,
-                                                        self.target_len,
-                                                        config.phn_size)
+                # self.real_sample = generate_real_sample(self.target_idx,
+                #                                         self.target_len,
+                #                                         config.phn_size)
                 inter_sample = generate_inter_sample(self.real_sample,
                                                      self.fake_sample)
 
@@ -117,11 +145,11 @@ class model(object):
 
                 with tf.variable_scope('segmental_loss') as scope:
                     sep_size = (config.batch_size * config.repeat) // 2
-                    self.seg_loss = segment_loss(
-                        self.fake_sample[:sep_size],
-                        self.fake_sample[sep_size:],
-                        repeat_num=self.sample_rep
-                    )
+                    # self.seg_loss = segment_loss(
+                    #     self.fake_sample[:sep_size],
+                    #     self.fake_sample[sep_size:],
+                    #     repeat_num=self.sample_rep
+                    # )
 
                 with tf.variable_scope('discriminator_loss') as scope:
                     self.real_score = tf.reduce_mean(real_sample_pred)
@@ -132,12 +160,12 @@ class model(object):
 
                 with tf.variable_scope('generator_loss') as scope:
                     self.gen_loss = - (self.fake_score - self.real_score) \
-                                    + config.seg_loss_ratio * self.seg_loss
+                                    + config.seg_loss_ratio  # * self.seg_loss
 
                 self.dis_variables = [v for v in tf.trainable_variables()
-                                      if v.name.startswith("discriminator")]
+                    if v.name.startswith("discriminator")]
                 self.gen_variables = [v for v in tf.trainable_variables()
-                                      if v.name.startswith("generator")]
+                    if v.name.startswith("generator")]
 
                 # Discriminator optimizer
                 train_dis_op = tf.train.AdamOptimizer(self.learning_rate,
@@ -161,12 +189,13 @@ class model(object):
         sys.stdout.flush()
 
     def train(self, config, sess, saver, data_loader, dev_data_loader=None,
-              aug=False):
+        aug=False):
         print('TRAINING(unsupervised)...')
-        if aug:
-            get_target_batch = data_loader.get_aug_target_batch
-        else:
-            get_target_batch = data_loader.get_target_batch
+        # if aug:
+        #     get_target_batch = data_loader.get_aug_target_batch
+        # else:
+        #     get_target_batch = data_loader.get_target_batch
+        noisy_sampler, real_sampler = create_data_samplers(config)
 
         batch_size = config.batch_size * config.repeat
         stats = defaultdict(list)
@@ -186,20 +215,27 @@ class model(object):
             if step == 12000:
                 frame_temp = 0.7
             for _ in range(config.dis_iter):
-                batch_sample_feat, batch_sample_len, batch_repeat_num = \
-                    data_loader.get_sample_batch(
-                        config.batch_size,
-                        repeat=config.repeat
-                    )
+                # batch_sample_feat, batch_sample_len, batch_repeat_num = \
+                #     data_loader.get_sample_batch(
+                #         config.batch_size,
+                #         repeat=config.repeat
+                #     )
+                #
+                # batch_target_idx, batch_target_len = get_target_batch(
+                #     batch_size)
+                noisy_batch = noisy_sampler.sample_batch()
+                real_batch = real_sampler.sample_batch()
 
-                batch_target_idx, batch_target_len = get_target_batch(
-                    batch_size)
+                gen_input = (noisy_batch['concat_phrase'])
+                real_sample = (real_batch['raw_phrase'])
 
                 feed_dict = {
-                    self.sample_feat:   batch_sample_feat,
-                    self.sample_len:    batch_sample_len,
-                    self.target_idx:    batch_target_idx,
-                    self.target_len:    batch_target_len,
+                    self.sample_feat:   gen_input,
+                    self.sample_len:    [config.phrase_length] *
+                                        gen_input.shape[0],
+                    # self.target_idx:    batch_target_idx,
+                    # self.target_len:    batch_target_len,
+                    self.real_sample:   real_sample,
                     self.learning_rate: config.dis_lr,
                     self.frame_temp:    frame_temp
                 }
@@ -228,27 +264,26 @@ class model(object):
                 stats['d_gradient_penalty'].append(d_gradient_penalty)
 
             for _ in range(config.gen_iter):
-                batch_sample_feat, batch_sample_len, batch_repeat_num = \
-                    data_loader.get_sample_batch(
-                        config.batch_size,
-                        repeat=config.repeat
-                    )
-                batch_target_idx, batch_target_len = get_target_batch(
-                    batch_size)
+                noisy_batch = noisy_sampler.sample_batch()
+                real_batch = real_sampler.sample_batch()
+
+                gen_input = (noisy_batch['concat_phrase'])
+                real_sample = (real_batch['raw_phrase'])
 
                 feed_dict = {
-                    self.sample_feat:   batch_sample_feat,
-                    self.sample_len:    batch_sample_len,
-                    self.target_idx:    batch_target_idx,
-                    self.target_len:    batch_target_len,
-                    self.sample_rep:    batch_repeat_num,
+                    self.sample_feat:   gen_input,
+                    self.sample_len:    [config.phrase_length] *
+                                        gen_input.shape[0],
+                    # self.target_idx:    batch_target_idx,
+                    # self.target_len:    batch_target_len,
+                    self.real_sample:   real_sample,
                     self.learning_rate: config.gen_lr,
                     self.frame_temp:    frame_temp
                 }
 
                 run_list = [
                     self.gen_loss,
-                    self.seg_loss,
+                    # self.seg_loss,
                     self.train_gen_op,
                     self.fake_sample,
                     self.real_score,
@@ -256,17 +291,18 @@ class model(object):
                 ]
                 (
                     gen_loss,
-                    seg_loss,
+                        # seg_loss,
                     train_gen_op,
                     g_fake_sample,
                     g_real_score,
                     g_fake_score,
                 ) = sess.run(run_list, feed_dict=feed_dict)
-
                 stats['gen_loss'].append(gen_loss)
-                stats['seg_loss'].append(seg_loss)
+                # stats['seg_loss'].append(seg_loss)
                 stats['g_real_score'].append(g_real_score)
                 stats['g_fake_score'].append(g_fake_score)
+
+
 
             if step % config.print_step == 0:
                 for k in stats.keys():
@@ -284,8 +320,6 @@ class model(object):
                     f'gen_loss: {stats["gen_loss"]:.4f} '
                     f'== real:{stats["g_real_score"]:.4f} '
                     f'- fake:{stats["g_fake_score"]:.4f} '
-                    f'+ {config.seg_loss_ratio:.1f} * seg_loss:'
-                    f'{stats["seg_loss"]:.4f}'
                 )
                 for k, v in stats.items():
                     writer.add_scalar(
@@ -298,10 +332,32 @@ class model(object):
                 stats.clear()
 
             if step % config.eval_step == 0:
-                step_fer = frame_eval(sess, self, dev_data_loader)
-                print(f'EVAL max: {max_fer:.2f} step: {step_fer:.2f}')
-                if step_fer < max_fer:
-                    max_fer = step_fer
-                    saver.save(sess, config.save_path)
+                print('#' * 80)
+                p_fake = g_fake_sample.argmax(axis=-1)
+                p_real = noisy_batch['raw_phrase'].argmax(axis=-1)
+
+                def decode(xs):
+                    return ''.join(
+                        chr(x) if x != ord('\0') else "_"
+                            for x in xs
+                    )
+
+                for (rl, fk) in zip(p_real[:5], p_fake[:5]):
+                    print(decode(rl))
+                    print(decode(fk))
+                print('#' * 80)
+                step_fer = (np.array(p_fake) == np.array(p_real)).mean()
+                print(f'Acc: {step_fer:.2}')
+                writer.add_scalar(
+                    'accuracy_on_single_batch',
+                    step_fer,
+                    global_step=step
+                )
+                continue
+                # step_fer = frame_eval(sess, self, dev_data_loader)
+                # print(f'EVAL max: {max_fer:.2f} step: {step_fer:.2f}')
+                # if step_fer < max_fer:
+                #     max_fer = step_fer
+                #     saver.save(sess, config.save_path)
 
         print('=' * 80)

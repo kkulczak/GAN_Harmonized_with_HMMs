@@ -24,7 +24,7 @@ cd src
 for iteration in $(seq 1 $total_iter); do
   ### train GAN model and get transcriptions
   bash train_GAN.sh $iteration || exit 1
-
+  exit 0
   ### train HMM and get new boundaries
   bash train_HMM.sh $iteration || exit 1
 done
