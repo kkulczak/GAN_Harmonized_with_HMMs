@@ -1,10 +1,16 @@
 import os
+import pickle
 import sys
 import _pickle as pk
 import numpy as np
 import random
 import math
+
+import torch
+import torch.nn.functional as F
 import yaml
+
+from lib.alphabet import Alphabet
 
 
 class AttrDict(dict):
@@ -19,15 +25,15 @@ def read_config(path):
 
 class data_loader(object):
     def __init__(self,
-                 config,
-                 feat_path,
-                 phn_path,
-                 orc_bnd_path,
-                 train_bnd_path=None,
-                 target_path=None,
-                 data_length=None,
-                 phn_map_path='./phones.60-48-39.map.txt',
-                 name='DATA LOADER'):
+        config,
+        feat_path,
+        phn_path,
+        orc_bnd_path,
+        train_bnd_path=None,
+        target_path=None,
+        data_length=None,
+        phn_map_path='./phones.60-48-39.map.txt',
+        name='DATA LOADER'):
 
         cout_word = f'{name}: loading    '
         sys.stdout.write(cout_word)
@@ -42,23 +48,56 @@ class data_loader(object):
         self.orc_bnd_path = orc_bnd_path
         self.train_bnd_path = train_bnd_path
         self.target_path = target_path
+        #
+        # self.read_phn_map(phn_map_path)
+        #
+        # feat = self.load_pickle(feat_path)
+        # phn = self.load_pickle(phn_path)
+        # orc_bnd = self.load_pickle(orc_bnd_path)
+        # assert (len(feat) == len(phn) == len(orc_bnd))
+        #
+        # self.data_length = len(feat) if data_length is None else data_length
+        # self.process_feat(feat[:self.data_length])
+        # self.process_label(orc_bnd[:self.data_length], phn[:self.data_length])
+        #
+        # if train_bnd_path is not None:
+        #     self.process_train_bnd(train_bnd_path)
+        #
+        # if target_path is not None:
+        #     self.process_target(target_path)
+        print(os.listdir('../..'))
+        texts_path = '../../data/texts_train.pickle'
+        vocabulary = '../../data/tasman.alphabet.plus.space.mode5.json'
+        with open(texts_path, 'rb') as f:
+            self.texts = pickle.load(f)
+        self.alphabet = Alphabet(vocabulary)
+        self.alignments = [
+            torch.tensor(self.alphabet.symList2idxList(t))
+            for t in self.texts
+        ]
 
-        self.read_phn_map(phn_map_path)
-
-        feat = self.load_pickle(feat_path)
-        phn = self.load_pickle(phn_path)
-        orc_bnd = self.load_pickle(orc_bnd_path)
-        assert (len(feat) == len(phn) == len(orc_bnd))
-
-        self.data_length = len(feat) if data_length is None else data_length
-        self.process_feat(feat[:self.data_length])
-        self.process_label(orc_bnd[:self.data_length], phn[:self.data_length])
-
-        if train_bnd_path is not None:
-            self.process_train_bnd(train_bnd_path)
-
-        if target_path is not None:
-            self.process_target(target_path)
+        for i in range(len(self.alignments)):
+            length = self.alignments[i].shape[0]
+            if length < config.phn_max_length:
+                self.alignments[i] = torch.cat([
+                    self.alignments[i],
+                    torch.zeros(config.phn_max_length - length,
+                                dtype=torch.long)
+                ])
+            else:
+                self.alignments[i] = self.alignments[i][:config.phn_max_length]
+        self.alignments = torch.stack(self.alignments, )
+        self.features = F.one_hot(
+            self.alignments,
+            num_classes=len(self.alphabet)
+        ).float().numpy()
+        self.alignments = self.alignments.numpy()
+        self.feat_dim = self.features.shape[2]
+        self.phn_size = len(self.alphabet)
+        self.data_length = self.alignments.shape[0]
+        self.target_data_length = self.data_length
+        self.phn_mapping = {i: i for i in range(200)}
+        print(self.alignments.shape)
 
         sys.stdout.write('\b' * len(cout_word))
         cout_word = f'{name}: finish     '
@@ -103,7 +142,7 @@ class data_loader(object):
         )
         self.train_bnd_range = np.zeros(
             shape=[self.data_length,
-                   self.phn_max_length],
+                self.phn_max_length],
             dtype='int32'
         )
         self.train_seq_length = np.zeros(
@@ -204,54 +243,75 @@ class data_loader(object):
         print('=' * 80)
 
     def get_sample_batch(self, batch_size, repeat=1):
-        batch_size = batch_size // 2
-        batch_idx = np.random.choice(
-            self.data_length,
+        # batch_size = batch_size // 2
+        # batch_idx = np.random.choice(
+        #     self.data_length,
+        #     batch_size,
+        #     replace=False
+        # )
+        # batch_idx = np.tile(batch_idx, (repeat))
+        # random_pick = np.clip(
+        #     np.random.normal(
+        #         0.5,
+        #         0.2,
+        #         [batch_size * 2 * repeat, self.phn_max_length]
+        #     ),
+        #     0.0,
+        #     1.0
+        # )
+        # # For every S_i take starting bound and with
+        # # random_pick sample which x_j should be taken
+        #
+        # # We have no 6 times same utterance with diffrent choosen y_j
+        # sample_frame = np.around(
+        #     np.tile(self.train_bnd[batch_idx], (2, 1))
+        #     + random_pick * np.tile(self.train_bnd_range[batch_idx], (2, 1))
+        # ).astype('int32')
+        #
+        # sample_source = np.tile(
+        #     self.source_data[batch_idx],
+        #     (2, 1, 1)
+        # )[
+        #     np.arange(batch_size * 2 * repeat).reshape([-1, 1]),
+        #     sample_frame
+        # ]
+        # # repeat_num: How often "picked y_j" are the same for first
+        # # and second part of the batch. We will use it in segment loss
+        # repeat_num = np.sum(np.not_equal(
+        #     sample_frame[:batch_size * repeat],
+        #     sample_frame[batch_size * repeat:]
+        # ).astype(np.int32), axis=1)
+        # lenghts = np.tile(
+        #         self.train_seq_length[batch_idx],
+        #         (2)
+        #     )
+        #
+        # print('fake_shape', sample_source.shape)
+        sample_source = self.features[np.random.choice(
+            self.features.shape[0],
             batch_size,
             replace=False
+        )]
+        lenghts = np.full(batch_size, self.features.shape[1])
+        repeat_num = np.full(batch_size, 0.0)
+        return (
+            sample_source,
+            lenghts,
+            repeat_num
         )
-        batch_idx = np.tile(batch_idx, (repeat))
-        random_pick = np.clip(
-            np.random.normal(
-                0.5,
-                0.2,
-                [batch_size * 2 * repeat, self.phn_max_length]
-            ),
-            0.0,
-            1.0
-        )
-        # For every S_i take starting bound and with
-        # random_pick sample which x_j should be taken
-
-        # We have no 6 times same utterance with diffrent choosen y_j
-        sample_frame = np.around(
-            np.tile(self.train_bnd[batch_idx], (2, 1))
-            + random_pick * np.tile(self.train_bnd_range[batch_idx], (2, 1))
-        ).astype('int32')
-
-        sample_source = np.tile(
-            self.source_data[batch_idx],
-            (2, 1, 1)
-        )[
-            np.arange(batch_size * 2 * repeat).reshape([-1, 1]),
-            sample_frame
-        ]
-        # repeat_num: How often "picked y_j" are the same for first
-        # and second part of the batch. We will use it in segment loss
-        repeat_num = np.sum(np.not_equal(
-            sample_frame[:batch_size * repeat],
-            sample_frame[batch_size * repeat:]
-        ).astype(np.int32), axis=1)
-
-        return sample_source, np.tile(
-            self.train_seq_length[batch_idx],
-            (2)
-        ), repeat_num
 
     def get_target_batch(self, batch_size):
-        batch_idx = np.random.choice(self.target_data_length, batch_size,
-                                     replace=False)
-        return self.target_data[batch_idx], self.target_length[batch_idx]
+        # batch_idx = np.random.choice(self.target_data_length, batch_size,
+        #                              replace=False)
+        # sample_source, lenghts = self.target_data[batch_idx],
+        # self.target_length[batch_idx]
+        sample_source = self.alignments[np.random.choice(
+            self.alignments.shape[0],
+            batch_size,
+            replace=False
+        )]
+        lenghts = np.full(batch_size, self.alignments.shape[1])
+        return sample_source, lenghts
 
     def get_aug_target_batch(self, batch_size):
         batch_idx = np.random.choice(self.target_data_length, batch_size,
@@ -278,11 +338,11 @@ class data_loader(object):
             else:
                 new_seq.extend([s] * np.random.choice([0, 1, 2, 3],
                                                       p=[0.04, 0.78, 0.17,
-                                                         0.01]))
+                                                          0.01]))
         return np.array(new_seq), len(new_seq)
 
     def generate_batch_number(self, batch_size):
-        self.batch_number = (self.data_length - 1) // batch_size + 1
+        self.batch_number = (self.data_length - 1) // batch_size #+1
 
     def reset_batch_pointer(self):
         self.pointer = 0
@@ -295,11 +355,19 @@ class data_loader(object):
         self.reset_batch_pointer()
 
         for i in range(self.batch_number):
-            batch_source = self.source_data[
-                           self.pointer:self.pointer + batch_size]
-            batch_frame_label = self.frame_label[
-                                self.pointer:self.pointer + batch_size]
-            batch_source_length = self.source_data_length[
-                                  self.pointer:self.pointer + batch_size]
+            # batch_source = self.source_data[
+            # self.pointer:self.pointer + batch_size]
+            # batch_frame_label = self.frame_label[
+            # self.pointer:self.pointer + batch_size]
+            # batch_source_length = self.source_data_length[
+            # self.pointer:self.pointer + batch_size]
+            # self.update_pointer(batch_size)
+            # yield batch_source, batch_frame_label, batch_source_length
+            batch_source = self.features[
+            self.pointer:self.pointer + batch_size]
+            batch_frame_label = self.alignments[
+            self.pointer:self.pointer + batch_size]
+            batch_source_length = np.full(batch_size, self.alignments.shape[1])
+
             self.update_pointer(batch_size)
             yield batch_source, batch_frame_label, batch_source_length

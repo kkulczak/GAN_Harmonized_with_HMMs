@@ -14,10 +14,12 @@ def frame_eval(sess, g, data_loader):
             g.frame_temp: 0.9
         }
         batch_frame_pred = sess.run(g.frame_pred, feed_dict=feed_dict)
-        frame_num, frame_error = evaluate_frame_result(batch_frame_pred, 
-                                                       batch_frame_label, 
-                                                       batch_frame_len, 
-                                                       data_loader.phn_mapping)
+        frame_num, frame_error = evaluate_frame_result(
+            batch_frame_pred,
+           batch_frame_label,
+           batch_frame_len,
+           data_loader.phn_mapping
+        )
         total_frame += frame_num
         total_error += frame_error
     total_fer = total_error / total_frame * 100
@@ -43,9 +45,9 @@ def output_framewise_prob(sess, g, output_path, data_loader):
             g.frame_temp: 0.9
         }
         [batch_frame_pred, batch_frame_prob] = sess.run([g.frame_pred, g.frame_prob], feed_dict=feed_dict)
-        frame_num, frame_error = evaluate_frame_result(batch_frame_pred, 
-                                                       batch_frame_label, 
-                                                       batch_frame_len, 
+        frame_num, frame_error = evaluate_frame_result(batch_frame_pred,
+                                                       batch_frame_label,
+                                                       batch_frame_len,
                                                        data_loader.phn_mapping)
         total_frame += frame_num
         total_error += frame_error

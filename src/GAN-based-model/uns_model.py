@@ -1,5 +1,6 @@
 from collections import defaultdict
 from glob import glob
+import time
 
 from torch.utils.tensorboard import SummaryWriter
 
@@ -126,13 +127,19 @@ class model(object):
                 with tf.variable_scope('discriminator_loss') as scope:
                     self.real_score = tf.reduce_mean(real_sample_pred)
                     self.fake_score = tf.reduce_mean(fake_sample_pred)
-                    self.dis_loss = - (self.real_score - self.fake_score) \
-                                    + config.penalty_ratio * \
-                                    self.gradient_penalty
+                    self.dis_loss = (
+                        - (self.real_score - self.fake_score)
+                        + config.penalty_ratio * self.gradient_penalty
+                    )
 
                 with tf.variable_scope('generator_loss') as scope:
-                    self.gen_loss = - (self.fake_score - self.real_score) \
-                                    + config.seg_loss_ratio * self.seg_loss
+                    self.gen_loss = (
+                        - (
+                            self.fake_score
+                           # - self.real_score
+                           )
+                        # + config.seg_loss_ratio * self.seg_loss
+                    )
 
                 self.dis_variables = [v for v in tf.trainable_variables()
                                       if v.name.startswith("discriminator")]
@@ -173,11 +180,9 @@ class model(object):
         max_fer = 100.0
         frame_temp = 0.9
 
-        mydir = os.path.join(os.getcwd(), '..', '..', 'data')
+        mydir = os.path.join(os.getcwd(), '..', '..', 'data', time.strftime('%Y-%m-%d_%H-%M-%S'))
 
-        for p in glob(os.path.join(mydir, '*tfevents*')):
-            print(f'Removing file: {p}')
-            os.remove(p)
+        os.makedirs(mydir, exist_ok=True)
         writer = SummaryWriter(mydir)
 
         for step in range(1, config.step + 1):
@@ -226,6 +231,7 @@ class model(object):
                 stats['d_real_score'].append(d_real_score)
                 stats['d_fake_score'].append(d_fake_score)
                 stats['d_gradient_penalty'].append(d_gradient_penalty)
+                stats['diff_score'].append(d_fake_score - d_real_sample)
 
             for _ in range(config.gen_iter):
                 batch_sample_feat, batch_sample_len, batch_repeat_num = \
@@ -300,6 +306,11 @@ class model(object):
             if step % config.eval_step == 0:
                 step_fer = frame_eval(sess, self, dev_data_loader)
                 print(f'EVAL max: {max_fer:.2f} step: {step_fer:.2f}')
+                writer.add_scalar(
+                    'acc/fer',
+                    100.0 - step_fer,
+                    global_step=step
+                )
                 if step_fer < max_fer:
                     max_fer = step_fer
                     saver.save(sess, config.save_path)
