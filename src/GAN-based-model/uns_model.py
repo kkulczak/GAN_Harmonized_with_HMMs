@@ -231,7 +231,7 @@ class model(object):
                 stats['d_real_score'].append(d_real_score)
                 stats['d_fake_score'].append(d_fake_score)
                 stats['d_gradient_penalty'].append(d_gradient_penalty)
-                stats['diff_score'].append(d_fake_score - d_real_sample)
+                stats['diff_score'].append(d_fake_score - d_real_score)
 
             for _ in range(config.gen_iter):
                 batch_sample_feat, batch_sample_len, batch_repeat_num = \

@@ -1,0 +1,3 @@
+[submodule "src/GAN-based-model/DistSup"]
+	path = src/GAN-based-model/DistSup
+	url = git@github.com:kkulczak/DistSup.git

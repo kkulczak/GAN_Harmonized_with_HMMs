@@ -28,7 +28,7 @@ repeat: 1
 # Train
 batch_size: 32
 #epoch: 2000 # for supervised training
-step: 1000 # for unsupervised training
+step: 10000 # for unsupervised training
 print_step: 20
 eval_step: 100
 gen_iter: 1

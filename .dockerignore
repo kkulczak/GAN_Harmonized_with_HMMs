@@ -1,2 +1,4 @@
 data
+**/data
 .git
+src/GAN-based-model/DistSup

@@ -1,16 +1,17 @@
+import itertools
 import os
 import pickle
 import sys
 import _pickle as pk
 import numpy as np
-import random
-import math
 
 import torch
 import torch.nn.functional as F
 import yaml
 
-from lib.alphabet import Alphabet
+# from lib.alphabet import Alphabet
+from distsup import utils
+from distsup.alphabet import Alphabet
 
 
 class AttrDict(dict):
@@ -97,7 +98,31 @@ class data_loader(object):
         self.data_length = self.alignments.shape[0]
         self.target_data_length = self.data_length
         self.phn_mapping = {i: i for i in range(200)}
-        print(self.alignments.shape)
+
+        self.distsup_dataloader = utils.construct_from_kwargs(
+            yaml.safe_load(f'''
+    class_name: torch.utils.data.DataLoader
+    batch_size: 32
+    dataset:
+        class_name: egs.scribblelens.simple_dataset.TextScribbleLensDataset
+        shape_as_image: false
+        max_lenght: 75
+        # tokens_protos:
+        #   class_name: distsup.modules.gan.utils.EncoderTokensProtos
+        #   path: "data/55_acc_letters_protoypes.npz"
+        #   protos_per_token: 1
+    shuffle: true
+    num_workers: 4
+    drop_last: true
+            '''
+            )
+        )
+
+        self.batches = (
+            {k: t.numpy() for k,t in batch.items()}
+            for _ in itertools.count()
+            for batch in self.distsup_dataloader
+        )
 
         sys.stdout.write('\b' * len(cout_word))
         cout_word = f'{name}: finish     '
@@ -287,12 +312,9 @@ class data_loader(object):
         #     )
         #
         # print('fake_shape', sample_source.shape)
-        sample_source = self.features[np.random.choice(
-            self.features.shape[0],
-            batch_size,
-            replace=False
-        )]
-        lenghts = np.full(batch_size, self.features.shape[1])
+        batch = next(self.batches)
+        sample_source = batch['features']
+        lenghts = batch['features_len']
         repeat_num = np.full(batch_size, 0.0)
         return (
             sample_source,
@@ -305,12 +327,9 @@ class data_loader(object):
         #                              replace=False)
         # sample_source, lenghts = self.target_data[batch_idx],
         # self.target_length[batch_idx]
-        sample_source = self.alignments[np.random.choice(
-            self.alignments.shape[0],
-            batch_size,
-            replace=False
-        )]
-        lenghts = np.full(batch_size, self.alignments.shape[1])
+        batch = next(self.batches)
+        sample_source = batch['alignment']
+        lenghts = batch['alignment_len']
         return sample_source, lenghts
 
     def get_aug_target_batch(self, batch_size):
@@ -351,10 +370,10 @@ class data_loader(object):
         self.pointer += batch_size
 
     def get_batch(self, batch_size):
-        self.generate_batch_number(batch_size)
-        self.reset_batch_pointer()
+        # self.generate_batch_number(batch_size)
+        # self.reset_batch_pointer()
 
-        for i in range(self.batch_number):
+        for batch in self.distsup_dataloader:
             # batch_source = self.source_data[
             # self.pointer:self.pointer + batch_size]
             # batch_frame_label = self.frame_label[
@@ -363,11 +382,10 @@ class data_loader(object):
             # self.pointer:self.pointer + batch_size]
             # self.update_pointer(batch_size)
             # yield batch_source, batch_frame_label, batch_source_length
-            batch_source = self.features[
-            self.pointer:self.pointer + batch_size]
-            batch_frame_label = self.alignments[
-            self.pointer:self.pointer + batch_size]
-            batch_source_length = np.full(batch_size, self.alignments.shape[1])
+            batch = {k: t.numpy() for k,t in batch.items()}
+            batch_source = batch['features']
+            batch_frame_label = batch['alignment']
+            batch_source_length = batch['alignment_len']
 
-            self.update_pointer(batch_size)
+            # self.update_pointer(batch_size)
             yield batch_source, batch_frame_label, batch_source_length
