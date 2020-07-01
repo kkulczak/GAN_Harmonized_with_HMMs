@@ -101,16 +101,16 @@ class data_loader(object):
 
         self.distsup_dataloader = utils.construct_from_kwargs(
             yaml.safe_load(f'''
-    class_name: torch.utils.data.DataLoader
+    class_name: distsup.data.FixedDatasetLoader
     batch_size: 32
     dataset:
         class_name: egs.scribblelens.simple_dataset.TextScribbleLensDataset
         shape_as_image: false
         max_lenght: 75
-        # tokens_protos:
-        #   class_name: distsup.modules.gan.utils.EncoderTokensProtos
-        #   path: "data/55_acc_letters_protoypes.npz"
-        #   protos_per_token: 1
+        tokens_protos:
+            class_name: distsup.modules.gan.utils.EncoderTokensProtos
+            path: "data/55_acc_letters_protoypes.npz"
+            protos_per_token: 256
     shuffle: true
     num_workers: 4
     drop_last: true

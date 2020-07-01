@@ -12,7 +12,7 @@ python3 main.py --mode train --cuda_id $CUDA_VISIBLE_DEVICES \
                --data_dir $DATA_PATH \
                --save_dir $DATA_PATH/save/${prefix} \
                --config "./config.yaml"
-exit 1
+exit 0
 cd ../ 
 
 # WFST decode the phoneme sequences
