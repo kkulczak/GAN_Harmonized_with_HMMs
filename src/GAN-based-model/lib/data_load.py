@@ -66,38 +66,33 @@ class data_loader(object):
         #
         # if target_path is not None:
         #     self.process_target(target_path)
-        print(os.listdir('../..'))
-        texts_path = '../../data/texts_train.pickle'
-        vocabulary = '../../data/tasman.alphabet.plus.space.mode5.json'
-        with open(texts_path, 'rb') as f:
-            self.texts = pickle.load(f)
-        self.alphabet = Alphabet(vocabulary)
-        self.alignments = [
-            torch.tensor(self.alphabet.symList2idxList(t))
-            for t in self.texts
-        ]
-
-        for i in range(len(self.alignments)):
-            length = self.alignments[i].shape[0]
-            if length < config.phn_max_length:
-                self.alignments[i] = torch.cat([
-                    self.alignments[i],
-                    torch.zeros(config.phn_max_length - length,
-                                dtype=torch.long)
-                ])
-            else:
-                self.alignments[i] = self.alignments[i][:config.phn_max_length]
-        self.alignments = torch.stack(self.alignments, )
-        self.features = F.one_hot(
-            self.alignments,
-            num_classes=len(self.alphabet)
-        ).float().numpy()
-        self.alignments = self.alignments.numpy()
-        self.feat_dim = self.features.shape[2]
-        self.phn_size = len(self.alphabet)
-        self.data_length = self.alignments.shape[0]
-        self.target_data_length = self.data_length
-        self.phn_mapping = {i: i for i in range(200)}
+        # print(os.listdir('../..'))
+        # texts_path = '../../data/texts_train.pickle'
+        # vocabulary = '../../data/tasman.alphabet.plus.space.mode5.json'
+        # with open(texts_path, 'rb') as f:
+        #     self.texts = pickle.load(f)
+        # self.alphabet = Alphabet(vocabulary)
+        # self.alignments = [
+        #     torch.tensor(self.alphabet.symList2idxList(t))
+        #     for t in self.texts
+        # ]
+        #
+        # for i in range(len(self.alignments)):
+        #     length = self.alignments[i].shape[0]
+        #     if length < config.phn_max_length:
+        #         self.alignments[i] = torch.cat([
+        #             self.alignments[i],
+        #             torch.zeros(config.phn_max_length - length,
+        #                         dtype=torch.long)
+        #         ])
+        #     else:
+        #         self.alignments[i] = self.alignments[i][:config.phn_max_length]
+        # self.alignments = torch.stack(self.alignments, )
+        # self.features = F.one_hot(
+        #     self.alignments,
+        #     num_classes=len(self.alphabet)
+        # ).float().numpy()
+        # self.alignments = self.alignments.numpy()
 
         self.distsup_dataloader = utils.construct_from_kwargs(
             yaml.safe_load(f'''
@@ -117,6 +112,11 @@ class data_loader(object):
             '''
             )
         )
+        self.feat_dim = 68
+        self.phn_size = 68
+        self.data_length = len(self.distsup_dataloader) * 32
+        self.target_data_length = self.data_length
+        self.phn_mapping = {i: i for i in range(200)}
 
         self.batches = (
             {k: t.numpy() for k,t in batch.items()}
