@@ -93,7 +93,25 @@ class data_loader(object):
         #     num_classes=len(self.alphabet)
         # ).float().numpy()
         # self.alignments = self.alignments.numpy()
-
+        self.real_dataloader = utils.construct_from_kwargs(
+            yaml.safe_load(f'''
+            class_name: distsup.data.FixedDatasetLoader
+            batch_size: 32
+            dataset:
+                class_name: egs.scribblelens.simple_dataset.TextScribbleLensDataset
+                shape_as_image: false
+                max_lenght: 75
+                unmatched_real_sample: true
+                tokens_protos:
+                    class_name: distsup.modules.gan.utils.EncoderTokensProtos
+                    path: "data/55_acc_letters_protoypes.npz"
+                    protos_per_token: 4096
+            shuffle: true
+            num_workers: 4
+            drop_last: true
+                    '''
+                           )
+        )
         self.distsup_dataloader = utils.construct_from_kwargs(
             yaml.safe_load(f'''
     class_name: distsup.data.FixedDatasetLoader
@@ -102,10 +120,11 @@ class data_loader(object):
         class_name: egs.scribblelens.simple_dataset.TextScribbleLensDataset
         shape_as_image: false
         max_lenght: 75
+        unmatched_real_sample: false
         tokens_protos:
             class_name: distsup.modules.gan.utils.EncoderTokensProtos
             path: "data/55_acc_letters_protoypes.npz"
-            protos_per_token: 256
+            protos_per_token: 4096
     shuffle: true
     num_workers: 4
     drop_last: true
@@ -123,7 +142,12 @@ class data_loader(object):
             for _ in itertools.count()
             for batch in self.distsup_dataloader
         )
-
+        self.real_batches = (
+            {k: t.numpy() for k, t in batch.items()}
+            for _ in itertools.count()
+            for batch in self.real_dataloader
+        )
+        print(next(self.batches).keys())
         sys.stdout.write('\b' * len(cout_word))
         cout_word = f'{name}: finish     '
         sys.stdout.write(cout_word + '\n')
@@ -327,7 +351,7 @@ class data_loader(object):
         #                              replace=False)
         # sample_source, lenghts = self.target_data[batch_idx],
         # self.target_length[batch_idx]
-        batch = next(self.batches)
+        batch = next(self.real_batches)
         sample_source = batch['alignment']
         lenghts = batch['alignment_len']
         return sample_source, lenghts
